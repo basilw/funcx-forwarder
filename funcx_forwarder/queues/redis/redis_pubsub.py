@@ -1,7 +1,6 @@
 import redis
 from redis.exceptions import ConnectionError
 import queue
-import json
 import time
 from typing import Tuple
 from funcx_forwarder.errors import FuncxError
@@ -10,9 +9,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class NotConnected(FuncxError):
     """ Queue is not connected/active
     """
+
     def __init__(self, queue):
         self.queue = queue
 
@@ -56,7 +57,7 @@ class RedisPubSub(object):
             if subscribers == 0:
                 self.redis_client.rpush(f'{self.task_queue_prefix}{endpoint_id}', task.task_id)
                 # logger.debug("No active subscribers. Pushing to queue")
-            #logger.debug(f"Active subscribers : {subscribers}")
+            # logger.debug(f"Active subscribers : {subscribers}")
 
         except AttributeError:
             raise Exception("Not connected")
@@ -152,7 +153,7 @@ def test_client(ep=None):
             print("Received msg : ", msg)
             if not t:
                 t = time.time()
-            if task_id == 'sentinel':
+            if task == 'sentinel':
                 print("Breaking received sentinel")
                 delta = time.time() - t
                 break
@@ -161,7 +162,8 @@ def test_client(ep=None):
         except Exception:
             pass
 
-    print("Performance : {:8.3f} Msgs/s".format(count/delta))
+    print("Performance : {:8.3f} Msgs/s".format(count / delta))
+
 
 def test_server(ep=None, count=1000, delay=0):
     sender = RedisPubSub('127.0.0.1')
@@ -174,7 +176,7 @@ def test_server(ep=None, count=1000, delay=0):
         sender.put(ep, task)
         time.sleep(delay)
 
-    task = Task(sender.redis_client, f'sentinel', container='RAW', serializer='',
+    task = Task(sender.redis_client, 'sentinel', container='RAW', serializer='',
                 payload='sentinel')
     sender.put(ep, task)
 
@@ -190,8 +192,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.client == True:
+    if args.client is True:
         test_client(ep=args.endpoint_id)
     else:
         test_server(ep=args.endpoint_id, count=10, delay=10)
-

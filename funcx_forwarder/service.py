@@ -3,13 +3,10 @@
 This REST service fields incoming registration requests from endpoints,
 creates an appropriate forwarder to which the endpoint can connect up.
 """
-
-
 import argparse
 import json
 import logging
 import redis
-import threading
 import time
 
 from flask import Flask, jsonify
@@ -108,15 +105,15 @@ def test(method):
 
     command_id = int(time.time())
     if method == 'TERMINATE':
-        command = {'command' : 'REGISTER_ENDPOINT',
+        command = {'command': 'REGISTER_ENDPOINT',
                    'endpoint_id': 'Foooo',
-                   'id' : command_id}
+                   'id': command_id}
 
     elif method == 'REGISTER_ENDPOINT':
-        command = {'command' : 'REGISTER_ENDPOINT',
+        command = {'command': 'REGISTER_ENDPOINT',
                    'client_keys': 'CLIENT_KEYS',
                    'endpoint_id': 'Foooo',
-                   'id' : command_id}
+                   'id': command_id}
     else:
         print("Unknown method")
         return 'None'
@@ -125,7 +122,7 @@ def test(method):
     response = app.config['forwarder_response'].get()
 
     return response
-    #return "Hello"
+    # return "Hello"
 
 
 @app.route('/register', methods=['POST'])
@@ -137,13 +134,14 @@ def register():
     """
     reg_info = request.get_json()
     print("Registering endpoint : ", reg_info['endpoint_id'])
-    app.config['forwarder_command'].put({'command' : 'ADD_ENDPOINT_TO_REGISTRY',
+    app.config['forwarder_command'].put({'command': 'ADD_ENDPOINT_TO_REGISTRY',
                                          'endpoint_id': reg_info['endpoint_id'],
                                          'client_public_key': reg_info['client_public_key'],
                                          'id': 0})
     ret_package = app.config['forwarder_response'].get()
     print(f"Registration response : {ret_package}")
     return ret_package
+
 
 @app.route('/list_mappings')
 def list_mappings():
@@ -192,7 +190,7 @@ def cli():
     app.config['forwarder_process'] = fw
 
     # Run a test command to make sure the forwarder is online
-    app.config['forwarder_command'].put({'command' : 'LIVENESS', 'id': 0})
+    app.config['forwarder_command'].put({'command': 'LIVENESS', 'id': 0})
     response = app.config['forwarder_response'].get()
     print(response)
 
@@ -228,7 +226,6 @@ def cli():
         print("Graceful exit")
         app.config['forwarder_command'].put({'command': 'TERMINATE'})
         fw.stop()
-
 
 
 if __name__ == '__main__':

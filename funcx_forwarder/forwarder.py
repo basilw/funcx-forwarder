@@ -1,17 +1,14 @@
 import logging
 import os
 import zmq
-import requests
-import redis
 import queue
 import threading
-from funcx_forwarder import set_file_logger, set_stream_logger
+from funcx_forwarder import set_file_logger
 
 from multiprocessing import Process, Queue, Event
 from funcx_forwarder.taskqueue import TaskQueue
 from funcx_forwarder.queues.redis.redis_pubsub import RedisPubSub
-from funcx_endpoint.executors.high_throughput.messages import Message, COMMAND_TYPES, Task
-from funcx_endpoint.executors.high_throughput.messages import Heartbeat
+from funcx_endpoint.executors.high_throughput.messages import Task, Heartbeat
 
 from funcx_forwarder.queues.redis.tasks import Task as RedisTask
 from funcx_forwarder.queues.redis.tasks import TaskState
@@ -50,10 +47,11 @@ class Forwarder(Process):
                   |  Endpoint 1 | ... |     Endpoint N     |
                   +-------------+     +--------------------+
     """
+
     def __init__(self,
                  command_queue,
                  response_queue,
-                 redis_address : str,
+                 redis_address: str,
                  endpoint_ports=(55001, 55002, 55003),
                  redis_port: int = 6379,
                  logdir: str = "forwarder_logs",
@@ -96,9 +94,6 @@ class Forwarder(Process):
         global logger
         logger = set_file_logger(f'{self.logdir}/forwarder.log', level=logging_level)
 
-        #global logger
-        #logger = set_stream_logger(level=logging_level)
-
         logger.info("Initializing forwarder")
         logger.info("Log level set to {}".format(loglevels[logging_level]))
 
@@ -120,12 +115,12 @@ class Forwarder(Process):
                 response = {'response': True,
                             'id': command.get('id')}
             elif command['command'] == 'TERMINATE':
-                logger.info(f"[COMMAND] Received TERMINATE command")
+                logger.info("[COMMAND] Received TERMINATE command")
                 response = {'response': True,
                             'id': command.get('id')}
                 kill_event.set()
             elif command['command'] == 'ADD_ENDPOINT_TO_REGISTRY':
-                logger.info(f"[COMMAND] Received REGISTER_ENDPOINT command")
+                logger.info("[COMMAND] Received REGISTER_ENDPOINT command")
                 result = self.add_endpoint_to_registry(command['endpoint_id'],
                                                        command['client_public_key'])
 
@@ -205,13 +200,13 @@ class Forwarder(Process):
         """ Process entry point
         """
         logger.info("[MAIN] Loop starting")
-        logger.info(f"[MAIN] Connecting to redis")
+        logger.info("[MAIN] Connecting to redis")
         logger.info(f"[MAIN] Forwarder listening for tasks on :{self.tasks_port}")
         logger.info(f"[MAIN] Forwarder listening for results on :{self.results_port}")
         logger.info(f"[MAIN] Forwarder issuing commands on :{self.commands_port}")
         try:
             self.redis_pubsub.connect()
-        except:
+        except Exception:
             logger.exception("[MAIN] Failed to connect to Redis")
             raise
 
@@ -224,7 +219,6 @@ class Forwarder(Process):
                                                           args=(self.kill_event,),
                                                           name="forwarder-command-processor")
         self._command_processor_thread.start()
-
 
         """  DEBUG : We will initially hack this with just one named endpoint `testing_ep1`
         This should happen on trigger from a registration request from the service
@@ -247,7 +241,7 @@ class Forwarder(Process):
             # Receive endpoint registration messages. Only registration messages
             # are sent from the interchange -> forwarder on the task_q
             try:
-                b_ep_id, reg_message = self.tasks_q.get(timeout=0) # timeout in ms # Update to 0ms
+                b_ep_id, reg_message = self.tasks_q.get(timeout=0)  # timeout in ms # Update to 0ms
                 # At this point ep_id is authenticated by means having the client keys.
                 ep_id = b_ep_id.decode('utf-8')
                 logger.info(f'Endpoint:{ep_id} connected')
@@ -256,13 +250,13 @@ class Forwarder(Process):
                     # This really shouldn't happen, could be a reconnect ?
                     logger.warning(f"[MAIN] Endpoint:{ep_id} attempted connect when it already is in connected list")
                 self.connected_endpoints[ep_id] = {'registration_message': reg_message,
-                                                   'missed_heartbeats' : 0}
+                                                   'missed_heartbeats': 0}
 
                 # Now subscribe to messages for ep_id
                 self.add_subscriber(ep_id)
             except zmq.Again:
                 pass
-            except Exception as e:
+            except Exception:
                 logger.exception("Caught exception while waiting for registration")
 
             # Now wait for any messages on REDIS that needs forwarding.
@@ -273,7 +267,7 @@ class Forwarder(Process):
             except queue.Empty:
                 # logger.debug("REDIS queues are empty")
                 pass
-            except Exception as e:
+            except Exception:
                 logger.exception("Caught exception waiting for message from REDIS")
                 pass
 
@@ -293,18 +287,17 @@ class Forwarder(Process):
                     except (zmq.error.ZMQError, zmq.Again):
                         logger.exception(f"Endpoint:{dest_endpoint} is unreachable")
                         self.unregister_endpoint(dest_endpoint)
-                    except Exception as e:
+                    except Exception:
                         logger.exception("Caught error while sending {task.task_id} to {dest_endpoint}")
                         pass
 
-
             try:
-                 # timeout in ms # Update to 0ms
+                # timeout in ms # Update to 0ms
                 b_ep_id, b_message = self.results_q.get(block=False, timeout=1)
                 # logger.debug(f"Message from results_q : {b_message}")
                 try:
                     message = pickle.loads(b_message)
-                except:
+                except Exception:
                     logger.exception(f"Failed to unpickle message from results_q, message:{b_message}")
 
                 if 'registration' in message:
@@ -327,11 +320,10 @@ class Forwarder(Process):
                     # TODO:Yadu remove the log line
                     logger.debug(f"Exception : {message['task_id']} {message['exception']}")
 
-
             except zmq.Again:
                 # logger.debug("[MAIN] No result messages")
                 pass
-            except Exception as e:
+            except Exception:
                 logger.exception("Caught exception from results queue")
 
 
@@ -341,4 +333,3 @@ if __name__ == '__main__':
     fw = Forwarder(command, response, '127.0.0.1')
     # fw.start()
     fw.run()
-
