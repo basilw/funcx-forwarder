@@ -10,13 +10,15 @@ import json
 import logging
 import redis
 import threading
+import time
 
 from flask import Flask, jsonify
 from flask import request
 
 from funcx_forwarder.version import VERSION, MIN_EP_VERSION
-from funcx_forwarder.forwarderobject import spawn_forwarder
-
+# from funcx_forwarder.forwarderobject import spawn_forwarder
+from funcx_forwarder.forwarder import Forwarder
+from multiprocessing import Queue
 
 app = Flask(__name__)
 
@@ -99,44 +101,49 @@ def wait_for_forwarder(fw):
     fw.join()
 
 
+@app.route('/test/<method>', methods=['GET'])
+def test(method):
+    print(f"[DEBUG]: In test with {method}")
+    print(app.config['forwarder_command'])
+
+    command_id = int(time.time())
+    if method == 'TERMINATE':
+        command = {'command' : 'REGISTER_ENDPOINT',
+                   'endpoint_id': 'Foooo',
+                   'id' : command_id}
+
+    elif method == 'REGISTER_ENDPOINT':
+        command = {'command' : 'REGISTER_ENDPOINT',
+                   'client_keys': 'CLIENT_KEYS',
+                   'endpoint_id': 'Foooo',
+                   'id' : command_id}
+    else:
+        print("Unknown method")
+        return 'None'
+
+    app.config['forwarder_command'].put(command)
+    response = app.config['forwarder_response'].get()
+
+    return response
+    #return "Hello"
+
+
 @app.route('/register', methods=['POST'])
 def register():
     """ Register an endpoint request
 
-    1. Start an executor client object corresponding to the endpoint
+    1. Register client key with the forwarder instance
     2. Pass connection info back as a json response.
     """
-
-    print("Request: ", request)
-    print("foo: ", app.config['ep_mapping'])
-    print(request.get_json())
-    endpoint_details = request.get_json()
-    print(endpoint_details)
-
-    # Here we want to start an executor client.
-    # Make sure to not put anything into the client, until after an interchange has
-    # connected to avoid clogging up the pipe. Submits will block if the client has
-    # no endpoint connected.
-    endpoint_id = endpoint_details['endpoint_id']
-    fw = spawn_forwarder(app.config['address'],
-                         endpoint_details['redis_address'],
-                         endpoint_id,
-                         endpoint_addr=endpoint_details['endpoint_addr'],
-                         logging_level=logging.DEBUG if app.debug else logging.INFO)
-
-    connection_info = fw.connection_info
-
-    fw_mon = threading.Thread(target=wait_for_forwarder, daemon=True, args=(fw,))
-    fw_mon.start()
-
-    ret_package = {'endpoint_id': endpoint_id}
-    ret_package.update(connection_info)
-    print("Ret_package : ", ret_package)
-
-    print("Ep_id: ", endpoint_id)
-    app.config['ep_mapping'][endpoint_id] = ret_package
+    reg_info = request.get_json()
+    print("Registering endpoint : ", reg_info['endpoint_id'])
+    app.config['forwarder_command'].put({'command' : 'ADD_ENDPOINT_TO_REGISTRY',
+                                         'endpoint_id': reg_info['endpoint_id'],
+                                         'client_public_key': reg_info['client_public_key'],
+                                         'id': 0})
+    ret_package = app.config['forwarder_response'].get()
+    print(f"Registration response : {ret_package}")
     return ret_package
-
 
 @app.route('/list_mappings')
 def list_mappings():
@@ -155,6 +162,8 @@ def cli():
                         help="Redis host address")
     parser.add_argument("--redisport", default=6379,
                         help="Redis port")
+    parser.add_argument("--logdir", default="forwarder_logs",
+                        help="Loggind directory to which forwarder logs should go")
     parser.add_argument("-d", "--debug", action='store_true',
                         help="Enables debug logging")
 
@@ -169,16 +178,59 @@ def cli():
         decode_responses=True
     )
 
+    app.config['forwarder_command'] = Queue()
+    app.config['forwarder_response'] = Queue()
+
+    fw = Forwarder(app.config['forwarder_command'],
+                   app.config['forwarder_response'],
+                   args.redishost,
+                   # endpoint_ports=(55008, 55009, 55010),   # Only for debug
+                   logdir=args.logdir,
+                   logging_level=logging.DEBUG if args.debug else logging.INFO,
+                   redis_port=args.redisport)
+    fw.start()
+    app.config['forwarder_process'] = fw
+
+    # Run a test command to make sure the forwarder is online
+    app.config['forwarder_command'].put({'command' : 'LIVENESS', 'id': 0})
+    response = app.config['forwarder_response'].get()
+    print(response)
+
+    # DEBUG ---- <WARNING THIS IS ONLY FOR DEBUG>
+    """
+    client_key = None
+    with open('/tmp/client.key') as f:
+        client_key = f.read()
+    print("Pushing client key : ", client_key)
+    app.config['forwarder_command'].put({'command' : 'ADD_ENDPOINT_TO_REGISTRY',
+                                         'endpoint_id': 'edb1ebd4-f99a-4f99-b8aa-688da5b5ede7',
+                                         'client_public_key': client_key,
+                                         'id': 0})
+    response = app.config['forwarder_response'].get()
+    print(f"Registration response : {response}")
+    """
+
     try:
         print("Starting forwarder service")
-        app.run(host="0.0.0.0", port=int(args.port), debug=True)
+        # **WARNING** : DO NOT run this in debug=True mode. It copies the
+        # forwarder process into the 2 process mode flask runs when in debug.
+        app.run(host="0.0.0.0", port=int(args.port), debug=False)
+
+    except KeyboardInterrupt:
+        print("Exiting from keyboard interrupt")
 
     except Exception as e:
         # This doesn't do anything
         print("Caught exception : {}".format(e))
         exit(-1)
 
+    finally:
+        print("Graceful exit")
+        app.config['forwarder_command'].put({'command': 'TERMINATE'})
+        fw.stop()
+
+
 
 if __name__ == '__main__':
-    print("entering forwarder service main.........")
+    print("Entering forwarder service main.........")
     cli()

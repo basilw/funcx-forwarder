@@ -4,7 +4,7 @@ from enum import Enum
 
 from redis import StrictRedis
 
-from funcx.executors.high_throughput.messages import TaskStatusCode
+from funcx_endpoint.executors.high_throughput.messages import TaskStatusCode
 
 
 # We subclass from str so that the enum can be JSON-encoded without adjustment
