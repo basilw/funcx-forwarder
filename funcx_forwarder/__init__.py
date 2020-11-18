@@ -63,6 +63,7 @@ def set_stream_logger(name='forwarder', level=logging.DEBUG, format_string=None)
     formatter = logging.Formatter(format_string, datefmt='%Y-%m-%d %H:%M:%S')
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    return logger
 
 
 logging.getLogger('forwarder').addHandler(logging.NullHandler())
