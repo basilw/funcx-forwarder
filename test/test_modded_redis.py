@@ -3,10 +3,9 @@ import time
 import uuid
 
 from funcx.serialize import FuncXSerializer
-
-# from funcx_forwarder.queues import EndpointQueue
 from funcx_forwarder.queues.redis.tasks import Task, TaskState
 from funcx_forwarder.queues.redis.redis_pubsub import RedisPubSub
+
 
 def slow_double(i, duration=0):
     import time
@@ -18,7 +17,7 @@ def dont_run_yet(endpoint_id=None, tasks=10, duration=1, hostname=None):
     # tasks_rq = EndpointQueue(f'task_{endpoint_id}', hostname)
     tasks_channel = RedisPubSub(hostname)
     tasks_channel.connect()
-    redis_client  = tasks_channel.redis_client
+    redis_client = tasks_channel.redis_client
     redis_client.ping()
     fxs = FuncXSerializer()
 
