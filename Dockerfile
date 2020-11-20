@@ -7,6 +7,8 @@ RUN apk update && \
 RUN addgroup -S funcx && adduser -S funcx -G funcx
 WORKDIR /opt/funcx-forwarder
 COPY requirements.txt .
+RUN git clone https://github.com/funcx-faas/funcX.git
+RUN pip install funcx/funcx_endpoint
 RUN pip install -r requirements.txt
 
 COPY . /opt/funcx-forwarder
