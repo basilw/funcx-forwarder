@@ -3,7 +3,9 @@ import os
 import zmq
 import queue
 import threading
-from funcx_forwarder import set_file_logger
+import funcx_forwarder
+from funcx_forwarder import set_file_logger, set_stream_logger
+
 
 from multiprocessing import Process, Queue, Event
 from funcx_forwarder.taskqueue import TaskQueue
@@ -89,12 +91,16 @@ class Forwarder(Process):
         self.keys_dir = keys_dir
 
         self.redis_pubsub = RedisPubSub(hostname=redis_address, port=redis_port)
-        os.makedirs(self.logdir, exist_ok=True)
 
         global logger
-        logger = set_file_logger(f'{self.logdir}/forwarder.log', level=logging_level)
+        if self.logdir:
+            os.makedirs(self.logdir, exist_ok=True)
+            logger = set_file_logger(f'{self.logdir}/forwarder.log', level=logging_level)
+        else:
+            logger = set_stream_logger(level=logging_level)
 
-        logger.info("Initializing forwarder")
+        logger.info(f"Initializing forwarder v{funcx_forwarder.__version__}")
+        logger.info(f"REDIS url: {self.redis_url}")
         logger.info("Log level set to {}".format(loglevels[logging_level]))
 
     def command_processor(self, kill_event):
@@ -201,9 +207,9 @@ class Forwarder(Process):
         """
         logger.info("[MAIN] Loop starting")
         logger.info("[MAIN] Connecting to redis")
-        logger.info(f"[MAIN] Forwarder listening for tasks on :{self.tasks_port}")
-        logger.info(f"[MAIN] Forwarder listening for results on :{self.results_port}")
-        logger.info(f"[MAIN] Forwarder issuing commands on :{self.commands_port}")
+        logger.info(f"[MAIN] Forwarder listening for tasks on: {self.tasks_port}")
+        logger.info(f"[MAIN] Forwarder listening for results on: {self.results_port}")
+        logger.info(f"[MAIN] Forwarder issuing commands on: {self.commands_port}")
         try:
             self.redis_pubsub.connect()
         except Exception:
@@ -211,6 +217,7 @@ class Forwarder(Process):
             raise
 
         # TODO : THis timeout might become an issue
+        # TaskQueue in server mode binds to all interfaces
         self.tasks_q = TaskQueue('127.0.0.1', port=self.tasks_port, RCVTIMEO=1, mode='server')
         self.results_q = TaskQueue('127.0.0.1', port=self.results_port, mode='server')
         self.commands_q = TaskQueue('127.0.0.1', port=self.commands_port, mode='server')
