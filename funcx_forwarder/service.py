@@ -160,12 +160,18 @@ def cli():
                         help="Redis host address")
     parser.add_argument("--redisport", default=6379,
                         help="Redis port")
-    parser.add_argument("--logdir", default="forwarder_logs",
-                        help="Loggind directory to which forwarder logs should go")
+    parser.add_argument("--logdir", default=None,
+                        help="If logdir is not specified, forwarder logs will go to stdout/err")
     parser.add_argument("-d", "--debug", action='store_true',
                         help="Enables debug logging")
+    parser.add_argument("-v", "--version", action='store_true',
+                        help="Print version information")
 
     args = parser.parse_args()
+
+    if args.version is True:
+        print(f"Forwarder version: {VERSION}")
+        print(f"Forwarder minimum endpoint version: {MIN_EP_VERSION}")
 
     app.config['address'] = args.address
     app.config['ep_mapping'] = {}
