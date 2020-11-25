@@ -14,7 +14,7 @@ class TaskQueue(object):
 
     def __init__(self,
                  address: str,
-                 port: int = 55001,
+                 port: int,
                  identity: str = str(uuid.uuid4()),
                  zmq_context=None,
                  set_hwm=False,
@@ -108,8 +108,8 @@ class TaskQueue(object):
         self.auth = ThreadAuthenticator(self.context)
         self.auth.start()
         self.auth.allow('127.0.0.1')
-        # Tell the authenticator how to handle CURVE requests
 
+        # Tell the authenticator how to handle CURVE requests
         if not self.ironhouse:
             # Use the stonehouse ZMQ pattern: http://hintjens.com/blog:49#toc5
             self.auth.configure_curve(domain='*', location=zmq.auth.CURVE_ALLOW_ANY)
