@@ -63,7 +63,6 @@ class TaskQueue(object):
             print("Configuring server")
             self.zmq_socket = self.context.socket(zmq.ROUTER)
             self.zmq_socket.set(zmq.ROUTER_MANDATORY, 1)
-            print("Setting up auth-server")
             self.setup_server_auth()
             self.zmq_socket.bind("tcp://*:{}".format(port))
         elif self.mode == 'client':
@@ -107,7 +106,7 @@ class TaskQueue(object):
         # Start an authenticator for this context.
         self.auth = ThreadAuthenticator(self.context)
         self.auth.start()
-        self.auth.allow('127.0.0.1')
+        self.auth.allow()
 
         # Tell the authenticator how to handle CURVE requests
         if not self.ironhouse:
@@ -125,7 +124,7 @@ class TaskQueue(object):
         # We need two certificates, one for the client and one for
         # the server. The client must know the server's public key
         # to make a CURVE connection.
-        client_secret_file = os.path.join(self.keys_dir, "client.key_secret")
+        client_secret_file = os.path.join(self.keys_dir, "endpoint.key_secret")
         client_public, client_secret = zmq.auth.load_certificate(client_secret_file)
         self.zmq_socket.curve_secretkey = client_secret
         self.zmq_socket.curve_publickey = client_public
