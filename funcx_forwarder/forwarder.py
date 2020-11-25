@@ -53,10 +53,12 @@ class Forwarder(Process):
     def __init__(self,
                  command_queue,
                  response_queue,
+                 address: str,
                  redis_address: str,
                  endpoint_ports=(55001, 55002, 55003),
                  redis_port: int = 6379,
                  logdir: str = "forwarder_logs",
+                 stream_logs: bool = False,
                  logging_level=logging.INFO,
                  heartbeat_period=2,
                  keys_dir=os.path.abspath('.curve'),
@@ -67,6 +69,12 @@ class Forwarder(Process):
         ep_registration_queue: Queue
              multiprocessing queue over which the service will send requests to register
              new endpoints with the forwarder
+
+        stream_logs: Bool
+             When enabled, forwarder will stream logs to STDOUT/ERR.
+
+        address : str
+             Public address at which the forwarder will be accessible from the endpoints
 
         redis_address : str
              full address to connect to redis. Required
@@ -80,6 +88,7 @@ class Forwarder(Process):
         super().__init__()
         self.command_queue = command_queue
         self.response_queue = response_queue
+        self.address = address
         self.redis_url = f"{redis_address}:{redis_port}"
         self.logdir = logdir
         self.tasks_port, self.results_port, self.commands_port = endpoint_ports
@@ -96,10 +105,12 @@ class Forwarder(Process):
         if self.logdir:
             os.makedirs(self.logdir, exist_ok=True)
             logger = set_file_logger(f'{self.logdir}/forwarder.log', level=logging_level)
-        else:
+
+        if stream_logs:
             logger = set_stream_logger(level=logging_level)
 
         logger.info(f"Initializing forwarder v{funcx_forwarder.__version__}")
+        logger.info(f"Forwarder running on public address: {self.address}")
         logger.info(f"REDIS url: {self.redis_url}")
         logger.info("Log level set to {}".format(loglevels[logging_level]))
 
@@ -133,7 +144,7 @@ class Forwarder(Process):
                 response = {'response': result,
                             'id': command.get('id'),
                             'endpoint_id': command['endpoint_id'],
-                            'public_ip': '127.0.0.1',
+                            'public_ip': self.address,
                             'tasks_port': self.tasks_port,
                             'results_port': self.results_port,
                             'commands_port': self.commands_port}
@@ -186,8 +197,7 @@ class Forwarder(Process):
         """
         if self._last_heartbeat + self.heartbeat_period > time.time():
             return
-
-        # logger.info("Sending heartbeats")
+        logger.debug("Heartbeat")
         dest_endpoint_list = list(self.connected_endpoints.keys())
         for dest_endpoint in dest_endpoint_list:
             logger.debug(f"Sending heartbeat to {dest_endpoint}")

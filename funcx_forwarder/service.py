@@ -136,7 +136,7 @@ def register():
     print("Registering endpoint : ", reg_info['endpoint_id'])
     app.config['forwarder_command'].put({'command': 'ADD_ENDPOINT_TO_REGISTRY',
                                          'endpoint_id': reg_info['endpoint_id'],
-                                         'client_public_key': reg_info['client_public_key'],
+                                         'client_public_key': reg_info.get('client_public_key', None),
                                          'id': 0})
     ret_package = app.config['forwarder_response'].get()
     print(f"Registration response : {ret_package}")
@@ -161,7 +161,9 @@ def cli():
     parser.add_argument("--redisport", default=6379,
                         help="Redis port")
     parser.add_argument("--logdir", default=None,
-                        help="If logdir is not specified, forwarder logs will go to stdout/err")
+                        help="Dir to which forwarder logs would be written")
+    parser.add_argument("--stream_logs", action='store_true',
+                        help="Enable streaming logging to STDOUT/ERR")
     parser.add_argument("-d", "--debug", action='store_true',
                         help="Enables debug logging")
     parser.add_argument("-v", "--version", action='store_true',
@@ -187,8 +189,10 @@ def cli():
 
     fw = Forwarder(app.config['forwarder_command'],
                    app.config['forwarder_response'],
+                   args.address,
                    args.redishost,
                    # endpoint_ports=(55008, 55009, 55010),   # Only for debug
+                   stream_logs=args.stream_logs,
                    logdir=args.logdir,
                    logging_level=logging.DEBUG if args.debug else logging.INFO,
                    redis_port=args.redisport)
