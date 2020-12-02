@@ -20,6 +20,9 @@ if __name__ == '__main__':
         if args.force:
             print(f"Server keys exist at: {target}*, overwriting")
             server_public_file, server_secret_file = zmq.auth.create_certificates(args.dir, "server")
-            print(f"Wrote key to {server_secret_file}")
         else:
             print(f"Server keys exist at: {target}*, aborting")
+    else:
+        server_public_file, server_secret_file = zmq.auth.create_certificates(args.dir, "server")
+        print(f"Wrote key to {server_secret_file}")
+
