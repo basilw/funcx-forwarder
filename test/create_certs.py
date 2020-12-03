@@ -25,4 +25,3 @@ if __name__ == '__main__':
     else:
         server_public_file, server_secret_file = zmq.auth.create_certificates(args.dir, "server")
         print(f"Wrote key to {server_secret_file}")
-
