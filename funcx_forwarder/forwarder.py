@@ -120,7 +120,6 @@ class Forwarder(Process):
             with open(forwarder_keyfile, 'r') as f:
                 self.forwarder_pubkey = f.read()
 
-
     def command_processor(self, kill_event):
         """ command_processor listens on the self.command_queue
         for commands and responds with results on the self.response_queue
