@@ -117,9 +117,15 @@ class Forwarder(Process):
             logger.info(f"Keys dir empty: {self.keys_dir}, creating keys")
             os.makedirs(self.keys_dir, exist_ok=True)
             forwarder_keyfile, _ = zmq.auth.create_certificates(self.keys_dir, "server")
+        else:
+            forwarder_keyfile = os.path.join(self.keys_dir, 'server.key')
+
+        try:
             with open(forwarder_keyfile, 'r') as f:
                 self.forwarder_pubkey = f.read()
-
+        except Exception:
+            logger.exception(f"[CRITICAL] Failed to read server keyfile from {forwarder_keyfile}")
+            raise
 
     def command_processor(self, kill_event):
         """ command_processor listens on the self.command_queue
