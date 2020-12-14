@@ -98,7 +98,6 @@ class Forwarder(Process):
         self._last_heartbeat = time.time()
         self.endpoint_registry = {}
         self.keys_dir = keys_dir
-
         self.redis_pubsub = RedisPubSub(hostname=redis_address, port=redis_port)
 
         global logger
@@ -113,6 +112,14 @@ class Forwarder(Process):
         logger.info(f"Forwarder running on public address: {self.address}")
         logger.info(f"REDIS url: {self.redis_url}")
         logger.info("Log level set to {}".format(loglevels[logging_level]))
+
+        if not os.path.exists(self.keys_dir) or not os.listdir(self.keys_dir):
+            logger.info(f"Keys dir empty: {self.keys_dir}, creating keys")
+            os.makedirs(self.keys_dir, exist_ok=True)
+            forwarder_keyfile, _ = zmq.auth.create_certificates(self.keys_dir, "server")
+            with open(forwarder_keyfile, 'r') as f:
+                self.forwarder_pubkey = f.read()
+
 
     def command_processor(self, kill_event):
         """ command_processor listens on the self.command_queue
@@ -144,6 +151,7 @@ class Forwarder(Process):
                 response = {'response': result,
                             'id': command.get('id'),
                             'endpoint_id': command['endpoint_id'],
+                            'forwarder_pubkey': self.forwarder_pubkey,
                             'public_ip': self.address,
                             'tasks_port': self.tasks_port,
                             'results_port': self.results_port,
@@ -228,9 +236,19 @@ class Forwarder(Process):
 
         # TODO : THis timeout might become an issue
         # TaskQueue in server mode binds to all interfaces
-        self.tasks_q = TaskQueue('127.0.0.1', port=self.tasks_port, RCVTIMEO=1, mode='server')
-        self.results_q = TaskQueue('127.0.0.1', port=self.results_port, mode='server')
-        self.commands_q = TaskQueue('127.0.0.1', port=self.commands_port, mode='server')
+        self.tasks_q = TaskQueue('127.0.0.1',
+                                 port=self.tasks_port,
+                                 RCVTIMEO=1,
+                                 keys_dir=self.keys_dir,
+                                 mode='server')
+        self.results_q = TaskQueue('127.0.0.1',
+                                   port=self.results_port,
+                                   keys_dir=self.keys_dir,
+                                   mode='server')
+        self.commands_q = TaskQueue('127.0.0.1',
+                                    port=self.commands_port,
+                                    keys_dir=self.keys_dir,
+                                    mode='server')
 
         self._command_processor_thread = threading.Thread(target=self.command_processor,
                                                           args=(self.kill_event,),
