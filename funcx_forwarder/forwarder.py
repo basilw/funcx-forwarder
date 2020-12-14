@@ -118,6 +118,7 @@ class Forwarder(Process):
             os.makedirs(self.keys_dir, exist_ok=True)
             forwarder_keyfile, _ = zmq.auth.create_certificates(self.keys_dir, "server")
         else:
+            logger.info(f"Keys in {self.keys_dir}: {os.listdir(self.keys_dir)}")
             forwarder_keyfile = os.path.join(self.keys_dir, 'server.key')
 
         try:
