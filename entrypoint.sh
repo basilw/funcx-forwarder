@@ -36,5 +36,9 @@ python3 wait_for_redis.py
 echo "Starting Forwarder against REDIS server $REDIS_HOST : $REDIS_PORT"
 # forwarder-service -a $ADVERTISED_FORWARDER_ADDRESS -p 8080 --redishost $REDIS_HOST --redisport $REDIS_PORT
 # YADU: REMOVE DEBUG FLAG FOR PRODUCTION:
+
+if [[ -z "${ADVERTISED_FORWARDER_ADDRESS}" ]]; then
+    ADVERTISED_FORWARDER_ADDRESS=`wget http://169.254.169.254/latest/meta-data/public-ipv4; cat public-ipv4`
+
 forwarder-service -a $ADVERTISED_FORWARDER_ADDRESS -p 8080 --redishost $REDIS_HOST --redisport $REDIS_PORT -d --stream_logs
 
