@@ -1,0 +1,22 @@
+{
+	"folders": [
+        {
+            "path": ".."
+        },
+        {
+            "path": "../tests"
+        },
+        {
+            "path": "../../../../../.funcx"
+        },
+        {
+            "path": "../../../../../anaconda3/envs/funcxstuff/lib/python3.7/site-packages/funcx/sdk"
+        },
+        {
+            "path": "../.."
+        }
+    ],
+	"settings": {
+		"python.pythonPath": "/home/basilw19/anaconda3/envs/funcxstuff/bin/python"
+	}
+}
