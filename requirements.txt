@@ -8,3 +8,4 @@ configobj==5.0.6
 texttable==1.6.2
 redis==3.5.3
 funcx==0.0.2a0
+pyzmq==19.0.2

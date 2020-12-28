@@ -122,7 +122,7 @@ def register():
                          app.config['redis_address'],
                          endpoint_id,
                          endpoint_addr=endpoint_details['endpoint_addr'],
-                         logging_level=logging.DEBUG if app.debug else logging.INFO,
+                         logging_level=logging.DEBUG,
                          interchange_port_range=(app.config['min_ic_port'],
                                                  app.config['max_ic_port']))
 

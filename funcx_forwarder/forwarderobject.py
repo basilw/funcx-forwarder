@@ -9,8 +9,8 @@ from multiprocessing import Queue
 
 import requests
 import zmq
-from funcx.executors import HighThroughputExecutor as HTEX
-from funcx.executors.high_throughput.executor import logger as executorLogger
+from .funcx_endpoint.executors.high_throughput.executor import HighThroughputExecutor as HTEX
+from .funcx_endpoint.executors.high_throughput.executor import logger as executorLogger
 from funcx.serialize import FuncXSerializer
 from parsl.channels import LocalChannel
 from parsl.providers import LocalProvider
@@ -321,7 +321,7 @@ def spawn_forwarder(address,
                     endpoint_addr=None,
                     executor=None,
                     task_q=None,
-                    logging_level=logging.INFO,
+                    logging_level=logging.DEBUG,
                     interchange_port_range=(54000, 55000)):
     """ Spawns a forwarder and returns the forwarder process for tracking.
 

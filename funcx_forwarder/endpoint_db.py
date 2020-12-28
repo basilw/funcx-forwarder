@@ -42,6 +42,8 @@ class EndpointDB(object):
         try:
             if not self.redis_client:
                 self.redis_client = redis.StrictRedis(host=self.hostname, port=self.port, decode_responses=True)
+                print(f"host: {self.hostname}")
+                print(f"port: {self.port}")
         except redis.exceptions.ConnectionError:
             print("ConnectionError while trying to connect to Redis@{}:{}".format(self.hostname,
                                                                                   self.port))
@@ -138,9 +140,14 @@ class EndpointDB(object):
         try:
             # self.redis_client.set(f'{self.prefix}:{key}', json.dumps(payload))
             self.redis_client.lpush(f'ep_status_{endpoint_id}', json.dumps(payload))
+            print(f"inside put: {json.dumps(payload)}")
             if 'new_core_hrs' in payload:
                 self.redis_client.incrbyfloat('funcx_worldwide_counter', amount=payload['new_core_hrs'])
             self.redis_client.ltrim(f'ep_status_{endpoint_id}', 0, 2880)  # Keep 2 x 24hr x 60 min worth of logs
+            print(f"Total len : {self.redis_client.llen(f'ep_status_{endpoint_id}')}") 
+            print(f"Total len: {redis.StrictRedis(host='funcx-redis-master', port=6379, decode_responses=True).llen(f'ep_status_{endpoint_id}')}")
+            
+            
 
         except AttributeError:
             raise NotConnected(self)
